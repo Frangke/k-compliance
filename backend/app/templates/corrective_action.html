@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>시정조치 보고서 — {{ period_label }}</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --open: #94a3b8;
+    --progress: #3b82f6;
+    --done: #22c55e;
+    --verified: #16a34a;
+    --overdue: #ef4444;
+    --text: #1e293b;
+    --border: #e2e8f0;
+    --bg-soft: #f8fafc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    color: var(--text); line-height: 1.6; font-size: 13px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 30px; }
+  h1 { font-size: 26px; color: var(--primary); margin-bottom: 4px; }
+  .meta { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--primary); }
+
+  .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card { padding: 14px; border: 1px solid var(--border); border-radius: 8px; text-align: center; background: var(--bg-soft); }
+  .card .label { color: #64748b; font-size: 12px; }
+  .card .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+  .c-open .value { color: var(--open); }
+  .c-progress .value { color: var(--progress); }
+  .c-done .value { color: var(--done); }
+  .c-verified .value { color: var(--verified); }
+  .c-overdue .value { color: var(--overdue); }
+
+  .highlight { background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+  .highlight strong { color: var(--overdue); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+  th { background: var(--bg-soft); padding: 8px 10px; border: 1px solid var(--border); text-align: left; }
+  td { padding: 8px 10px; border: 1px solid var(--border); vertical-align: top; }
+  .status-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  }
+  .s-open { background: #f1f5f9; color: #475569; }
+  .s-in_progress { background: #dbeafe; color: #1e40af; }
+  .s-completed { background: #dcfce7; color: #15803d; }
+  .s-verified { background: #bbf7d0; color: #14532d; }
+  .s-overdue { background: #fee2e2; color: #991b1b; }
+  .d-day.neg { color: var(--overdue); font-weight: 700; }
+  .d-day.warn { color: #ea580c; font-weight: 600; }
+
+  .source-bars { display: flex; gap: 4px; margin-bottom: 20px; }
+  .source-bar { padding: 8px 12px; border-radius: 6px; background: var(--bg-soft); flex: 1; text-align: center; }
+  .source-bar .count { font-size: 20px; font-weight: 700; color: var(--primary); }
+  .source-bar .label { font-size: 11px; color: #64748b; }
+
+  .progress-bar-wrap { width: 100%; height: 24px; background: #f1f5f9; border-radius: 12px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--done), var(--verified)); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; }
+
+  @media print {
+    body { font-size: 11px; }
+    .container { max-width: none; padding: 10mm; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+  }
+  @page { size: A4; margin: 15mm; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>시정조치 보고서</h1>
+  <div class="meta">
+    기간: <strong>{{ period_label }}</strong> ·
+    생성일시: {{ generated_at }} · 생성자: {{ generated_by }}
+  </div>
+
+  <h2>전체 현황</h2>
+  <div class="cards">
+    <div class="card c-open"><div class="label">미착수</div><div class="value">{{ counts.open }}</div></div>
+    <div class="card c-progress"><div class="label">진행중</div><div class="value">{{ counts.in_progress }}</div></div>
+    <div class="card c-done"><div class="label">조치완료</div><div class="value">{{ counts.completed }}</div></div>
+    <div class="card c-verified"><div class="label">검증완료</div><div class="value">{{ counts.verified }}</div></div>
+    <div class="card c-overdue"><div class="label">기한초과</div><div class="value">{{ counts.overdue }}</div></div>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+      <span>전체 진척도</span>
+      <span><strong>{{ progress_rate }}%</strong> ({{ closed }} / {{ total }})</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" style="width: {{ progress_rate }}%;">{{ progress_rate }}%</div>
+    </div>
+  </div>
+
+  <h2>출처별 분포</h2>
+  <div class="source-bars">
+    <div class="source-bar"><div class="count">{{ source_counts.external_audit }}</div><div class="label">외부감사</div></div>
+    <div class="source-bar"><div class="count">{{ source_counts.internal_review }}</div><div class="label">내부점검</div></div>
+    <div class="source-bar"><div class="count">{{ source_counts.prowler }}</div><div class="label">Prowler</div></div>
+    <div class="source-bar"><div class="count">{{ source_counts.config }}</div><div class="label">AWS Config</div></div>
+    <div class="source-bar"><div class="count">{{ source_counts.other }}</div><div class="label">기타</div></div>
+  </div>
+
+  {% if overdue_count > 0 %}
+  <h2>⚠ 기한 초과 시정조치 ({{ overdue_count }}건)</h2>
+  <div class="highlight">
+    <strong>주의:</strong> 아래 {{ overdue_count }}건의 시정조치는 기한이 경과되었습니다. 즉시 조치 계획을 재수립하고 CPO에게 보고하세요.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>제목</th><th>출처</th><th>항목</th><th>담당자</th><th>기한</th><th>D-Day</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in overdue_items %}
+      <tr>
+        <td>#{{ r.id }}</td><td>{{ r.title }}</td>
+        <td>{{ r.source_label }}</td><td>{{ r.item_code or "-" }}</td>
+        <td>{{ r.assignee or "-" }}</td><td>{{ r.due_date }}</td>
+        <td class="d-day neg">D{{ "+%d" % r.d_day if r.d_day >= 0 else r.d_day }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h2>시정조치 전체 목록 ({{ total }}건)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>제목</th><th>출처</th><th>ISMS-P</th>
+        <th>담당자</th><th>기한</th><th>D-Day</th><th>상태</th>
+        <th>완료일</th><th>검증일</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>#{{ r.id }}</td>
+        <td>{{ r.title }}</td>
+        <td>{{ r.source_label }}</td>
+        <td>{{ r.item_code or "-" }}</td>
+        <td>{{ r.assignee or "-" }}</td>
+        <td>{{ r.due_date }}</td>
+        <td class="d-day {% if r.d_day < 0 %}neg{% elif r.d_day <= 7 %}warn{% endif %}">
+          D{{ "+%d" % r.d_day if r.d_day >= 0 else r.d_day }}
+        </td>
+        <td><span class="status-tag s-{{ r.status }}">{{ r.status_label }}</span></td>
+        <td>{{ r.completed_at or "-" }}</td>
+        <td>{{ r.verified_at or "-" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

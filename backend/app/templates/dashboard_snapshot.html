@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>K-Compliance 대시보드 스냅샷 — {{ period_label }}</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --compliant: #22c55e;
+    --partial: #eab308;
+    --non-compliant: #ef4444;
+    --na: #94a3b8;
+    --not-assessed: #cbd5e1;
+    --text: #0f172a;
+    --border: #e2e8f0;
+    --bg-soft: #f8fafc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Malgun Gothic', sans-serif; color: var(--text); font-size: 13px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+
+  .cover { text-align: center; padding: 60px 20px; border-bottom: 3px solid var(--primary); margin-bottom: 32px; page-break-after: always; }
+  .cover h1 { font-size: 30px; color: var(--primary); margin-bottom: 8px; }
+  .cover .sub { font-size: 16px; color: #475569; }
+  .cover .meta { margin-top: 28px; color: #64748b; font-size: 14px; }
+
+  h2 { font-size: 18px; color: var(--primary); margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .kpi { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); text-align: center; }
+  .kpi .label { color: #64748b; font-size: 12px; }
+  .kpi .val { font-size: 28px; font-weight: 700; margin-top: 4px; }
+  .kpi .desc { color: #64748b; font-size: 11px; margin-top: 4px; }
+
+  .donut-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .stat-block { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); }
+  .stat-block h3 { font-size: 14px; margin-bottom: 10px; color: var(--primary); }
+
+  .bars { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: 80px 1fr 60px; align-items: center; gap: 8px; }
+  .bar-row .name { font-size: 12px; font-weight: 600; }
+  .bar-track { height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; display: flex; }
+  .bar-seg { height: 100%; }
+  .bar-row .pct { text-align: right; font-size: 12px; font-weight: 600; }
+
+  .alert-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .alert { padding: 12px; border-radius: 8px; text-align: center; font-size: 12px; }
+  .alert.ok { background: #dcfce7; color: #15803d; }
+  .alert.warn { background: #fef9c3; color: #854d0e; }
+  .alert.danger { background: #fee2e2; color: #991b1b; }
+  .alert .num { font-size: 24px; font-weight: 700; display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--bg-soft); padding: 6px 8px; border: 1px solid var(--border); text-align: left; }
+  td { padding: 6px 8px; border: 1px solid var(--border); }
+
+  @media print { .container { max-width: none; padding: 10mm; } }
+  @page { size: A4; margin: 15mm; }
+
+  .print-hint { background: #eff6ff; border-left: 4px solid var(--primary); padding: 10px 14px; margin-bottom: 20px; font-size: 12px; }
+  @media print { .print-hint { display: none; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="cover">
+    <h1>K-Compliance 대시보드 스냅샷</h1>
+    <div class="sub">ISMS-P / PIPA 준수 현황 경영진 보고</div>
+    <div class="meta">
+      <div>{{ period_label }}</div>
+      <div>생성: {{ generated_at }} · {{ generated_by }}</div>
+    </div>
+  </div>
+
+  <div class="print-hint">
+    💡 <strong>PDF로 저장:</strong> 브라우저의 인쇄 기능(Ctrl/Cmd + P)에서 "PDF로 저장"을 선택하세요.
+  </div>
+
+  <h2>핵심 지표</h2>
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">전체 준수율</div>
+      <div class="val" style="color: var(--compliant);">{{ compliance_rate }}%</div>
+      <div class="desc">{{ status_counts.compliant }} / {{ total_items }} 항목</div>
+    </div>
+    <div class="kpi">
+      <div class="label">증적 유효</div>
+      <div class="val" style="color: var(--primary);">{{ evidence_stats.approved }}</div>
+      <div class="desc">전체 {{ evidence_stats.total }}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">시정조치 미완</div>
+      <div class="val" style="color: var(--non-compliant);">{{ corrective_stats.open_total }}</div>
+      <div class="desc">기한초과 {{ corrective_stats.overdue }}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">자동화 커버리지</div>
+      <div class="val" style="color: var(--primary);">{{ automation_stats.coverage_rate }}%</div>
+      <div class="desc">{{ automation_stats.covered }}개 항목</div>
+    </div>
+  </div>
+
+  <h2>PIPA 긴급 상황</h2>
+  <div class="alert-grid">
+    <div class="alert {% if pipa_snapshot.dsr_overdue > 0 %}danger{% else %}ok{% endif %}">
+      <span class="num">{{ pipa_snapshot.dsr_overdue }}</span>
+      DSR 기한초과
+    </div>
+    <div class="alert {% if pipa_snapshot.destruction_overdue > 0 %}danger{% else %}ok{% endif %}">
+      <span class="num">{{ pipa_snapshot.destruction_overdue }}</span>
+      파기 기한초과
+    </div>
+    <div class="alert {% if pipa_snapshot.incident_open > 0 %}warn{% else %}ok{% endif %}">
+      <span class="num">{{ pipa_snapshot.incident_open }}</span>
+      진행 중 사고
+    </div>
+    <div class="alert {% if pipa_snapshot.contract_expiring_30d > 0 %}warn{% else %}ok{% endif %}">
+      <span class="num">{{ pipa_snapshot.contract_expiring_30d }}</span>
+      계약 30일 내 만료
+    </div>
+  </div>
+
+  <h2>도메인별 준수 현황</h2>
+  <div class="bars">
+    {% for d in domains %}
+    <div class="bar-row">
+      <div class="name">{{ d.code }} {{ d.name }}</div>
+      <div class="bar-track">
+        {% set total = d.total or 1 %}
+        <div class="bar-seg" style="width: {{ d.compliant / total * 100 }}%; background: var(--compliant);"></div>
+        <div class="bar-seg" style="width: {{ d.partial / total * 100 }}%; background: var(--partial);"></div>
+        <div class="bar-seg" style="width: {{ d.non_compliant / total * 100 }}%; background: var(--non-compliant);"></div>
+        <div class="bar-seg" style="width: {{ d.na / total * 100 }}%; background: var(--na);"></div>
+        <div class="bar-seg" style="width: {{ d.not_assessed / total * 100 }}%; background: var(--not-assessed);"></div>
+      </div>
+      <div class="pct">{{ d.compliance_rate }}%</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2>자동 진단 요약</h2>
+  <div class="donut-row">
+    <div class="stat-block">
+      <h3>Prowler (최신 스캔)</h3>
+      <table>
+        <tr><th>전체</th><td>{{ prowler_stats.total }}</td></tr>
+        <tr><th>PASS</th><td style="color: var(--compliant);">{{ prowler_stats.passed }}</td></tr>
+        <tr><th>FAIL</th><td style="color: var(--non-compliant);">{{ prowler_stats.failed }}</td></tr>
+        <tr><th>조치 대기</th><td style="color: var(--non-compliant);">{{ prowler_stats.remediation_pending }}</td></tr>
+        <tr><th>스캔 시각</th><td>{{ prowler_stats.scanned_at or "N/A" }}</td></tr>
+      </table>
+    </div>
+    <div class="stat-block">
+      <h3>AWS Config (최신 동기화)</h3>
+      <table>
+        <tr><th>규칙 수</th><td>{{ config_stats.total_rules }}</td></tr>
+        <tr><th>COMPLIANT</th><td style="color: var(--compliant);">{{ config_stats.compliant }}</td></tr>
+        <tr><th>NON_COMPLIANT</th><td style="color: var(--non-compliant);">{{ config_stats.non_compliant }}</td></tr>
+        <tr><th>조치 대기</th><td style="color: var(--non-compliant);">{{ config_stats.remediation_pending }}</td></tr>
+        <tr><th>동기화 시각</th><td>{{ config_stats.synced_at or "N/A" }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2>증적 상태 분포</h2>
+  <table>
+    <tr>
+      <th>승인</th><th>제출</th><th>초안</th><th>반려</th><th>만료</th><th>전체</th>
+    </tr>
+    <tr>
+      <td style="color: var(--compliant);">{{ evidence_stats.approved }}</td>
+      <td>{{ evidence_stats.submitted }}</td>
+      <td>{{ evidence_stats.draft }}</td>
+      <td style="color: var(--non-compliant);">{{ evidence_stats.rejected }}</td>
+      <td style="color: var(--non-compliant);">{{ evidence_stats.expired }}</td>
+      <td><strong>{{ evidence_stats.total }}</strong></td>
+    </tr>
+  </table>
+</div>
+</body>
+</html>

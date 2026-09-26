@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISMS-P 인증 심사 대응 보고서 — {{ period_label }}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --compliant: #22c55e;
+    --partial: #eab308;
+    --non-compliant: #ef4444;
+    --na: #94a3b8;
+    --not-assessed: #6b7280;
+    --bg: #ffffff;
+    --text: #1e293b;
+    --text-sec: #64748b;
+    --border: #e2e8f0;
+    --card-bg: #f8fafc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 13px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 30px; }
+
+  /* Cover */
+  .cover {
+    text-align: center;
+    padding: 80px 40px;
+    border-bottom: 3px solid var(--primary);
+    margin-bottom: 40px;
+    page-break-after: always;
+  }
+  .cover h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 12px;
+  }
+  .cover .subtitle {
+    font-size: 20px;
+    color: var(--text);
+    margin-bottom: 40px;
+  }
+  .cover .meta-table {
+    display: inline-block;
+    text-align: left;
+    border-collapse: collapse;
+    margin-top: 30px;
+  }
+  .cover .meta-table td {
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cover .meta-table td:first-child {
+    font-weight: 600;
+    color: var(--text-sec);
+    width: 120px;
+  }
+
+  /* TOC */
+  .toc {
+    page-break-after: always;
+    margin-bottom: 40px;
+  }
+  .toc h2 { font-size: 22px; margin-bottom: 20px; color: var(--primary); }
+  .toc-list { list-style: none; }
+  .toc-list li {
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+  .toc-list li a { color: var(--text); text-decoration: none; font-weight: 500; }
+  .toc-list li a:hover { color: var(--primary); }
+
+  /* Section */
+  .section {
+    margin-bottom: 40px;
+    page-break-inside: avoid;
+  }
+  .section h2 {
+    font-size: 20px;
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 6px;
+    margin-bottom: 20px;
+  }
+  .section h3 {
+    font-size: 16px;
+    color: var(--text);
+    margin: 16px 0 10px;
+  }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .kpi-card .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 4px 0;
+  }
+  .kpi-card .kpi-label {
+    font-size: 12px;
+    color: var(--text-sec);
+  }
+  .kpi-card .kpi-sub {
+    font-size: 11px;
+    color: var(--text-sec);
+    margin-top: 4px;
+  }
+
+  /* Chart containers */
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .chart-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .chart-box h4 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .chart-box canvas { max-height: 260px; }
+
+  /* Tables */
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  table.data-table thead th {
+    background: var(--primary);
+    color: #fff;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  table.data-table tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.data-table tbody tr:nth-child(even) { background: #f1f5f9; }
+  table.data-table tbody tr:hover { background: #e2e8f0; }
+
+  /* Status badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .badge-compliant { background: var(--compliant); }
+  .badge-partial { background: var(--partial); color: #000; }
+  .badge-non_compliant { background: var(--non-compliant); }
+  .badge-not_applicable { background: var(--na); }
+  .badge-not_assessed { background: var(--not-assessed); }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 18px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    overflow: hidden;
+    display: flex;
+  }
+  .progress-bar .seg {
+    height: 100%;
+    transition: width 0.3s;
+  }
+  .progress-bar .seg-compliant { background: var(--compliant); }
+  .progress-bar .seg-partial { background: var(--partial); }
+  .progress-bar .seg-non_compliant { background: var(--non-compliant); }
+  .progress-bar .seg-na { background: var(--na); }
+  .progress-bar .seg-not_assessed { background: var(--not-assessed); }
+
+  /* Domain summary card */
+  .domain-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .domain-card h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .domain-card .rate { font-weight: 700; color: var(--primary); }
+
+  /* Footer */
+  .report-footer {
+    text-align: center;
+    padding: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-sec);
+    font-size: 11px;
+    margin-top: 40px;
+  }
+
+  /* Print styles */
+  @media print {
+    body { font-size: 11px; }
+    .container { padding: 0; max-width: 100%; }
+    .cover { padding: 50px 20px; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    .chart-row { grid-template-columns: 1fr 1fr; }
+    .section { page-break-inside: avoid; }
+    table.data-table { page-break-inside: auto; }
+    table.data-table tr { page-break-inside: avoid; }
+    .no-print { display: none !important; }
+    a { color: var(--text) !important; text-decoration: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 1. Cover -->
+  <div class="cover">
+    <h1>ISMS-P 인증 심사 대응 보고서</h1>
+    <div class="subtitle">정보보호 및 개인정보보호 관리체계 인증 준수 현황</div>
+    <table class="meta-table">
+      <tr><td>평가 기간</td><td>{{ period_label }}</td></tr>
+      <tr><td>보고서 생성일</td><td>{{ generated_at }}</td></tr>
+      <tr><td>생성자</td><td>{{ generated_by }}</td></tr>
+      <tr><td>전체 인증 항목</td><td>{{ total_items }}개</td></tr>
+      <tr><td>전체 준수율</td><td><strong style="color:var(--primary);font-size:18px">{{ compliance_rate }}%</strong></td></tr>
+    </table>
+  </div>
+
+  <!-- 2. Table of Contents -->
+  <div class="toc">
+    <h2>목차</h2>
+    <ol class="toc-list">
+      <li><a href="#summary">1. 요약 (Executive Summary)</a></li>
+      <li><a href="#domain">2. 도메인별 준수 현황</a></li>
+      <li><a href="#items">3. 항목별 상세 현황</a></li>
+      <li><a href="#evidence">4. 증적 관리 현황</a></li>
+      <li><a href="#corrective">5. 시정조치 현황</a></li>
+      <li><a href="#automation">6. 자동 진단 결과</a></li>
+      {% if trend_data %}
+      <li><a href="#trend">7. 준수율 추이</a></li>
+      {% endif %}
+    </ol>
+  </div>
+
+  <!-- 3. Executive Summary -->
+  <div class="section" id="summary">
+    <h2>1. 요약 (Executive Summary)</h2>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">전체 준수율</div>
+        <div class="kpi-value" style="color:{% if compliance_rate >= 80 %}var(--compliant){% elif compliance_rate >= 50 %}var(--partial){% else %}var(--non-compliant){% endif %}">{{ compliance_rate }}%</div>
+        <div class="kpi-sub">{{ status_counts.compliant }} / {{ total_items }} 항목</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">부분 준수</div>
+        <div class="kpi-value" style="color:var(--partial)">{{ status_counts.partial }}</div>
+        <div class="kpi-sub">개선 필요 항목</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">미준수</div>
+        <div class="kpi-value" style="color:var(--non-compliant)">{{ status_counts.non_compliant }}</div>
+        <div class="kpi-sub">즉시 조치 필요</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">미평가</div>
+        <div class="kpi-value" style="color:var(--not-assessed)">{{ status_counts.not_assessed }}</div>
+        <div class="kpi-sub">평가 진행 필요</div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h4>준수 상태 분포</h4>
+        <canvas id="statusPieChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>도메인별 준수율</h4>
+        <canvas id="domainBarChart"></canvas>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">승인 증적</div>
+        <div class="kpi-value">{{ evidence_stats.approved }}</div>
+        <div class="kpi-sub">건</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">심사 대기 증적</div>
+        <div class="kpi-value" style="color:var(--partial)">{{ evidence_stats.submitted }}</div>
+        <div class="kpi-sub">건</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">열린 시정조치</div>
+        <div class="kpi-value" style="color:var(--non-compliant)">{{ corrective_stats.open_total }}</div>
+        <div class="kpi-sub">기한 초과: {{ corrective_stats.overdue }}건</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">자동진단 커버리지</div>
+        <div class="kpi-value">{{ automation_stats.coverage_rate }}%</div>
+        <div class="kpi-sub">{{ automation_stats.covered }} / {{ total_items }} 항목</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Domain Breakdown -->
+  <div class="section" id="domain">
+    <h2>2. 도메인별 준수 현황</h2>
+
+    {% for domain in domains %}
+    <div class="domain-card">
+      <h3>
+        <span>{{ domain.code }}. {{ domain.name }}</span>
+        <span class="rate">{{ domain.compliance_rate }}%</span>
+      </h3>
+      <div class="progress-bar" title="준수:{{ domain.compliant }} 부분:{{ domain.partial }} 미준수:{{ domain.non_compliant }} N/A:{{ domain.na }} 미평가:{{ domain.not_assessed }}">
+        {% set dtotal = domain.total if domain.total > 0 else 1 %}
+        <div class="seg seg-compliant" style="width:{{ (domain.compliant / dtotal * 100)|round(1) }}%"></div>
+        <div class="seg seg-partial" style="width:{{ (domain.partial / dtotal * 100)|round(1) }}%"></div>
+        <div class="seg seg-non_compliant" style="width:{{ (domain.non_compliant / dtotal * 100)|round(1) }}%"></div>
+        <div class="seg seg-na" style="width:{{ (domain.na / dtotal * 100)|round(1) }}%"></div>
+        <div class="seg seg-not_assessed" style="width:{{ (domain.not_assessed / dtotal * 100)|round(1) }}%"></div>
+      </div>
+      <table class="data-table" style="margin-top:12px">
+        <thead>
+          <tr>
+            <th style="width:90px">코드</th>
+            <th>항목명</th>
+            <th style="width:90px">상태</th>
+            <th style="width:100px">체크리스트</th>
+            <th style="width:80px">증적</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in domain.item_list %}
+          <tr>
+            <td>{{ item.code }}</td>
+            <td>{{ item.name }}</td>
+            <td>
+              {% if item.status == 'compliant' %}
+              <span class="badge badge-compliant">준수</span>
+              {% elif item.status == 'partial' %}
+              <span class="badge badge-partial">부분</span>
+              {% elif item.status == 'non_compliant' %}
+              <span class="badge badge-non_compliant">미준수</span>
+              {% elif item.status == 'not_applicable' %}
+              <span class="badge badge-not_applicable">N/A</span>
+              {% else %}
+              <span class="badge badge-not_assessed">미평가</span>
+              {% endif %}
+            </td>
+            <td>{{ item.checklist_checked }}/{{ item.checklist_total }}</td>
+            <td>{{ item.evidence_approved }}/{{ item.evidence_total }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 5. Item Detail -->
+  <div class="section" id="items">
+    <h2>3. 항목별 상세 현황</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:70px">코드</th>
+          <th>항목명</th>
+          <th style="width:70px">도메인</th>
+          <th style="width:80px">상태</th>
+          <th style="width:80px">체크리스트</th>
+          <th style="width:60px">증적</th>
+          <th style="width:70px">Prowler</th>
+          <th style="width:70px">Config</th>
+          <th style="width:120px">평가일</th>
+          <th>비고</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in all_items %}
+        <tr>
+          <td>{{ item.code }}</td>
+          <td>{{ item.name }}</td>
+          <td>{{ item.domain_code }}</td>
+          <td>
+            {% if item.status == 'compliant' %}
+            <span class="badge badge-compliant">준수</span>
+            {% elif item.status == 'partial' %}
+            <span class="badge badge-partial">부분</span>
+            {% elif item.status == 'non_compliant' %}
+            <span class="badge badge-non_compliant">미준수</span>
+            {% elif item.status == 'not_applicable' %}
+            <span class="badge badge-not_applicable">N/A</span>
+            {% else %}
+            <span class="badge badge-not_assessed">미평가</span>
+            {% endif %}
+          </td>
+          <td>{{ item.checklist_checked }}/{{ item.checklist_total }}</td>
+          <td>{{ item.evidence_approved }}/{{ item.evidence_total }}</td>
+          <td>{% if item.prowler_total > 0 %}{{ item.prowler_passed }}/{{ item.prowler_total }}{% else %}-{% endif %}</td>
+          <td>{% if item.config_total > 0 %}{{ item.config_compliant }}/{{ item.config_total }}{% else %}-{% endif %}</td>
+          <td>{{ item.assessed_at or '-' }}</td>
+          <td style="font-size:11px;color:var(--text-sec)">{{ item.notes or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 6. Evidence -->
+  <div class="section" id="evidence">
+    <h2>4. 증적 관리 현황</h2>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+      <div class="kpi-card">
+        <div class="kpi-label">전체</div>
+        <div class="kpi-value">{{ evidence_stats.total }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">승인</div>
+        <div class="kpi-value" style="color:var(--compliant)">{{ evidence_stats.approved }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">심사대기</div>
+        <div class="kpi-value" style="color:var(--partial)">{{ evidence_stats.submitted }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">초안</div>
+        <div class="kpi-value">{{ evidence_stats.draft }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">반려</div>
+        <div class="kpi-value" style="color:var(--non-compliant)">{{ evidence_stats.rejected }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">만료</div>
+        <div class="kpi-value" style="color:var(--not-assessed)">{{ evidence_stats.expired }}</div>
+      </div>
+    </div>
+
+    <h3>증적 목록 ({{ evidence_records|length }}건)</h3>
+    {% if evidence_records %}
+    <table class="data-table">
+      <thead><tr>
+        <th style="width:50px">ID</th>
+        <th>제목</th>
+        <th style="width:160px">연결 항목</th>
+        <th style="width:80px">유형</th>
+        <th style="width:70px">상태</th>
+        <th style="width:90px">유효기간</th>
+        <th style="width:50px">버전</th>
+      </tr></thead>
+      <tbody>
+        {% for ev in evidence_records %}
+        <tr>
+          <td>{{ ev.id }}</td>
+          <td>{{ ev.title }}</td>
+          <td>{{ ev.linked_items }}</td>
+          <td>{{ ev.evidence_type }}</td>
+          <td>
+            {% if ev.status == 'approved' %}<span class="badge badge-compliant">승인</span>
+            {% elif ev.status == 'submitted' %}<span class="badge badge-partial">제출</span>
+            {% elif ev.status == 'rejected' %}<span class="badge badge-non_compliant">반려</span>
+            {% elif ev.status == 'expired' %}<span class="badge badge-not_assessed">만료</span>
+            {% elif ev.status == 'replaced' %}<span class="badge badge-not_applicable">대체됨</span>
+            {% else %}<span class="badge" style="background:#555">초안</span>{% endif %}
+          </td>
+          <td>{{ ev.valid_to }}</td>
+          <td style="text-align:center">v{{ ev.version }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--not-assessed);padding:8px">등록된 증적이 없습니다.</p>
+    {% endif %}
+
+    <h3 style="margin-top:24px">증적 미연결 인증 항목 ({{ items_without_evidence|length }}건)</h3>
+    {% if items_without_evidence %}
+    <p style="padding:0 0 8px;color:#94a3b8;font-size:13px">승인된 증적이 연결되지 않은 ISMS-P 인증 항목입니다.</p>
+    <table class="data-table">
+      <thead><tr>
+        <th style="width:80px">코드</th>
+        <th>항목명</th>
+        <th style="width:90px">준수 상태</th>
+      </tr></thead>
+      <tbody>
+        {% for item in items_without_evidence %}
+        <tr>
+          <td>{{ item.code }}</td>
+          <td>{{ item.name }}</td>
+          <td>
+            {% if item.status == 'compliant' %}<span class="badge badge-compliant">적합</span>
+            {% elif item.status == 'partial' %}<span class="badge badge-partial">부분적합</span>
+            {% elif item.status == 'non_compliant' %}<span class="badge badge-non_compliant">부적합</span>
+            {% elif item.status == 'not_applicable' %}<span class="badge badge-not_applicable">N/A</span>
+            {% else %}<span class="badge badge-not_assessed">미평가</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--compliant);padding:8px">모든 인증 항목에 승인된 증적이 연결되어 있습니다.</p>
+    {% endif %}
+  </div>
+
+  <!-- 7. Corrective Actions -->
+  <div class="section" id="corrective">
+    <h2>5. 시정조치 현황</h2>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="kpi-card">
+        <div class="kpi-label">열림</div>
+        <div class="kpi-value">{{ corrective_stats.open }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">진행 중</div>
+        <div class="kpi-value" style="color:var(--partial)">{{ corrective_stats.in_progress }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">완료</div>
+        <div class="kpi-value" style="color:var(--compliant)">{{ corrective_stats.completed }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">검증</div>
+        <div class="kpi-value" style="color:var(--primary)">{{ corrective_stats.verified }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">기한 초과</div>
+        <div class="kpi-value" style="color:var(--non-compliant)">{{ corrective_stats.overdue }}</div>
+      </div>
+    </div>
+
+    {% if corrective_actions %}
+    <h3>미완료 시정조치 목록</h3>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:40px">ID</th>
+          <th>제목</th>
+          <th style="width:80px">상태</th>
+          <th style="width:80px">출처</th>
+          <th style="width:80px">항목코드</th>
+          <th style="width:90px">기한</th>
+          <th style="width:60px">D-Day</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ca in corrective_actions %}
+        <tr>
+          <td>{{ ca.id }}</td>
+          <td>{{ ca.title }}</td>
+          <td>
+            {% if ca.status == 'overdue' %}
+            <span class="badge badge-non_compliant">기한초과</span>
+            {% elif ca.status == 'in_progress' %}
+            <span class="badge badge-partial">진행중</span>
+            {% else %}
+            <span class="badge badge-not_assessed">열림</span>
+            {% endif %}
+          </td>
+          <td>{{ ca.source }}</td>
+          <td>{{ ca.item_code or '-' }}</td>
+          <td>{{ ca.due_date }}</td>
+          <td style="color:{% if ca.d_day < 0 %}var(--non-compliant){% elif ca.d_day <= 7 %}var(--partial){% else %}var(--text){% endif %};font-weight:600">
+            {% if ca.d_day < 0 %}D+{{ ca.d_day|abs }}{% elif ca.d_day == 0 %}D-Day{% else %}D-{{ ca.d_day }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- 8. Automation -->
+  <div class="section" id="automation">
+    <h2>6. 자동 진단 결과</h2>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h4>Prowler 보안 스캔</h4>
+        {% if prowler_stats.total > 0 %}
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+          <div class="kpi-card">
+            <div class="kpi-label">통과</div>
+            <div class="kpi-value" style="color:var(--compliant)">{{ prowler_stats.passed }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">실패</div>
+            <div class="kpi-value" style="color:var(--non-compliant)">{{ prowler_stats.failed }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">조치 대기</div>
+            <div class="kpi-value" style="color:var(--partial)">{{ prowler_stats.remediation_pending }}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:8px">
+          최종 스캔: {{ prowler_stats.scanned_at or '없음' }}
+        </div>
+        {% else %}
+        <p style="color:var(--text-sec);padding:20px 0">Prowler 스캔 기록이 없습니다.</p>
+        {% endif %}
+      </div>
+
+      <div class="chart-box">
+        <h4>AWS Config 규칙 준수</h4>
+        {% if config_stats.total_rules > 0 %}
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+          <div class="kpi-card">
+            <div class="kpi-label">준수</div>
+            <div class="kpi-value" style="color:var(--compliant)">{{ config_stats.compliant }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">미준수</div>
+            <div class="kpi-value" style="color:var(--non-compliant)">{{ config_stats.non_compliant }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">조치 대기</div>
+            <div class="kpi-value" style="color:var(--partial)">{{ config_stats.remediation_pending }}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-sec);margin-top:8px">
+          최종 동기화: {{ config_stats.synced_at or '없음' }}
+        </div>
+        {% else %}
+        <p style="color:var(--text-sec);padding:20px 0">AWS Config 동기화 기록이 없습니다.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Trend (optional) -->
+  {% if trend_data %}
+  <div class="section" id="trend">
+    <h2>7. 준수율 추이</h2>
+    <div class="chart-box" style="max-width:800px">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Footer -->
+  <div class="report-footer">
+    <p>본 보고서는 K-Compliance 시스템에 의해 자동 생성되었습니다.</p>
+    <p>생성일시: {{ generated_at }} | 평가 기간: {{ period_label }}</p>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const COLORS = {
+    compliant: '#22c55e',
+    partial: '#eab308',
+    non_compliant: '#ef4444',
+    not_applicable: '#94a3b8',
+    not_assessed: '#6b7280',
+  };
+
+  // 1. Status Pie Chart
+  const statusCtx = document.getElementById('statusPieChart');
+  if (statusCtx) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['준수', '부분 준수', '미준수', 'N/A', '미평가'],
+        datasets: [{
+          data: [{{ status_counts.compliant }}, {{ status_counts.partial }}, {{ status_counts.non_compliant }}, {{ status_counts.na }}, {{ status_counts.not_assessed }}],
+          backgroundColor: [COLORS.compliant, COLORS.partial, COLORS.non_compliant, COLORS.not_applicable, COLORS.not_assessed],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } },
+        },
+        cutout: '55%',
+      }
+    });
+  }
+
+  // 2. Domain Bar Chart
+  const domainCtx = document.getElementById('domainBarChart');
+  if (domainCtx) {
+    new Chart(domainCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for d in domains %}'{{ d.code }}. {{ d.name|truncate(12, True) }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [
+          { label: '준수', data: [{% for d in domains %}{{ d.compliant }}{% if not loop.last %}, {% endif %}{% endfor %}], backgroundColor: COLORS.compliant },
+          { label: '부분', data: [{% for d in domains %}{{ d.partial }}{% if not loop.last %}, {% endif %}{% endfor %}], backgroundColor: COLORS.partial },
+          { label: '미준수', data: [{% for d in domains %}{{ d.non_compliant }}{% if not loop.last %}, {% endif %}{% endfor %}], backgroundColor: COLORS.non_compliant },
+          { label: 'N/A', data: [{% for d in domains %}{{ d.na }}{% if not loop.last %}, {% endif %}{% endfor %}], backgroundColor: COLORS.not_applicable },
+          { label: '미평가', data: [{% for d in domains %}{{ d.not_assessed }}{% if not loop.last %}, {% endif %}{% endfor %}], backgroundColor: COLORS.not_assessed },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } } },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+      }
+    });
+  }
+
+  // 3. Trend Line Chart (if data exists)
+  {% if trend_data %}
+  const trendCtx = document.getElementById('trendChart');
+  if (trendCtx) {
+    const trendData = {{ trend_data|tojson }};
+    const periods = [...new Set(trendData.map(d => d.period))].sort();
+    const domainCodes = [...new Set(trendData.map(d => d.domain_code))];
+    const domainColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+    new Chart(trendCtx, {
+      type: 'line',
+      data: {
+        labels: periods,
+        datasets: domainCodes.map((code, i) => ({
+          label: code,
+          data: periods.map(p => {
+            const entry = trendData.find(d => d.period === p && d.domain_code === code);
+            return entry ? Math.round(entry.compliant / entry.total * 100) : null;
+          }),
+          borderColor: domainColors[i % domainColors.length],
+          backgroundColor: domainColors[i % domainColors.length] + '20',
+          tension: 0.3,
+          fill: false,
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { min: 0, max: 100, title: { display: true, text: '준수율 (%)' } } },
+      }
+    });
+  }
+  {% endif %}
+});
+</script>
+</body>
+</html>

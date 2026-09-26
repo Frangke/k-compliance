@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Internal / dev-environment files — kept locally, never published (code only)
+.claude/
+CLAUDE.md
+LESSONS_LEARNED.md
+archive/
+docs/
+scripts/
+frontend/README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App-specific
+uploads/
+/tmp/prowler-*
+*.sqlite3
+
+# Terraform state (sensitive)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+

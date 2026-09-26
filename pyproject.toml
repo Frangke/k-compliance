@@ -1,0 +1,50 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [
+    "backend/alembic/versions",  # migrations follow Alembic's own style
+    "archive",
+]
+
+[tool.ruff.lint]
+# Start with the essentials. If CI stays green for a week we can widen.
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused import/name, undefined)
+    "I",   # isort
+    "B",   # bugbear (likely-bug patterns)
+    "UP",  # pyupgrade
+    "W",   # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line-too-long — formatter decides, not linter
+    "E712",  # `== True/False` — SQLAlchemy column comparison needs literal True/False, not `is`
+    "B008",  # Depends(...) as default is idiomatic FastAPI
+    "B904",  # raise-from inside except is noisy for HTTPException wrappers
+    "UP007", # Optional[X] vs X | None — project uses 3.12 union syntax already
+    "UP042", # str+Enum vs StrEnum — existing ENUM columns use str+PyEnum; blanket switch is risky
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/app/main.py" = ["E402"]  # router imports ordered after settings on purpose
+"**/__init__.py" = ["F401"]       # re-exports
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# pytest-asyncio 1.x defaults to a per-function loop, which closes the
+# shared asyncpg connection pool between tests and causes InterfaceError
+# on the second run. Scope the loop to the whole session so the global
+# AsyncEngine stays usable.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+filterwarnings = [
+    "ignore::DeprecationWarning:passlib.*",
+    "ignore::DeprecationWarning:jose.*",
+    "ignore::DeprecationWarning:httpx.*",
+]
