@@ -34,6 +34,54 @@ cd frontend && npm install && npm run dev
 
 접속: http://localhost:5173 (API는 `/api` → :8000 프록시), Swagger: http://localhost:8000/docs
 
+## EC2 배포: 비밀값은 SSM Parameter Store에서
+
+EC2에서는 비밀값을 `.env` 파일에 두지 않고 SSM Parameter Store(SecureString)에서 읽습니다.
+AWS 자격증명은 EC2 인스턴스 프로파일만 사용하므로 서버에 AWS Access Key를 두지 않습니다.
+
+- `SSM_PARAMETER_PREFIX`를 지정하면 앱 시작 시 그 경로 아래 파라미터를 읽어 같은 이름의 설정으로 씁니다.
+  (`/k-compliance/prod/JWT_SECRET_KEY` → `JWT_SECRET_KEY`)
+- 우선순위: 환경변수 > `.env` > SSM. 로컬 개발·CI는 `SSM_PARAMETER_PREFIX`를 비워 두면 기존처럼 동작합니다.
+- 접두사를 지정했는데 SSM 조회가 실패하면(권한 없음 등) 앱이 시작되지 않습니다. 비밀값 없이 뜨는 일을 막기 위함입니다.
+
+**1. 파라미터 등록** (관리자 권한이 있는 곳에서 한 번)
+
+```bash
+aws ssm put-parameter --region ap-northeast-2 --type SecureString \
+  --name /k-compliance/prod/JWT_SECRET_KEY --value "$(openssl rand -hex 32)"
+aws ssm put-parameter --region ap-northeast-2 --type SecureString \
+  --name /k-compliance/prod/ENCRYPTION_KEY --value "$(openssl rand -hex 32)"
+```
+
+`DATABASE_URL`, `DATABASE_URL_SYNC` 등 다른 설정도 같은 방식으로 넣을 수 있습니다.
+`ENCRYPTION_KEY`를 바꾸면 기존에 암호화 저장된 클라우드 계정 정보(AssumeRole ARN/ExternalId)를 다시 입력해야 합니다.
+
+**2. 인스턴스 프로파일(IAM 역할)에 읽기 권한 추가**
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "ssm:GetParametersByPath",
+  "Resource": [
+    "arn:aws:ssm:ap-northeast-2:<ACCOUNT_ID>:parameter/k-compliance/prod",
+    "arn:aws:ssm:ap-northeast-2:<ACCOUNT_ID>:parameter/k-compliance/prod/*"
+  ]
+}
+```
+
+기본 키(`aws/ssm`) 대신 고객 관리형 KMS 키로 암호화했다면 해당 키의 `kms:Decrypt` 권한도 필요합니다.
+
+**3. 앱 실행 환경에 접두사 지정** (비밀값이 아니므로 서비스 설정에 둬도 됩니다)
+
+```ini
+# systemd 서비스 예시: [Service] 섹션
+Environment=SSM_PARAMETER_PREFIX=/k-compliance/prod
+Environment=SSM_REGION=ap-northeast-2
+```
+
+마이그레이션(`alembic`)과 `app.cli`도 같은 설정을 읽으므로, 셸에서 실행할 때도
+`SSM_PARAMETER_PREFIX`를 export한 뒤 실행하면 됩니다.
+
 ## 기술 스택
 
 | 레이어 | 기술 |
