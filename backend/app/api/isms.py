@@ -151,8 +151,9 @@ async def compliance_detail(
     """Returns per-item compliance status (latest snapshot per item)."""
     items_result = await db.execute(
         select(ISMSItem, ISMSDomain.code.label("domain_code"), ISMSDomain.name.label("domain_name"))
-        .join(ISMSSubdomain)
-        .join(ISMSDomain)
+        .select_from(ISMSItem)
+        .join(ISMSSubdomain, ISMSItem.subdomain_id == ISMSSubdomain.id)
+        .join(ISMSDomain, ISMSSubdomain.domain_id == ISMSDomain.id)
         .order_by(ISMSItem.code)
     )
 
